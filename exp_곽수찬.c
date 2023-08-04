@@ -6,28 +6,36 @@
 
 
 int ExpMod(BIGNUM *r, const BIGNUM *a, const BIGNUM *e, BIGNUM *m){
+
     int result = 0;
-    BN_CTX *ctx = NULL;
+    BIGNUM *c = BN_new();
+    BIGNUM *i = BN_new();
+    BIGNUM *one = BN_new();
 
-    // BIGNUM 생성
-    ctx = BN_CTX_new();
+    BN_one(one); // Initialize 'one' to 1
+
+    BN_set_word(c,1);
+    //BN_copy(c, a); // Initialize 'c' to 'a'
+
+    BN_CTX *ctx = BN_CTX_new();
     if (ctx == NULL) {
-        result = -1;
-        goto cleanup;
+        result = -1; // Failed to initialize BN_CTX
+        BN_free(c);
+        BN_free(i);
+        BN_free(one);
+        return result;
     }
 
-    // 모듈러 거듭제곱 계산 
-    if (BN_mod_exp(r, a, e, m, ctx) != 1) {
-        result = -1;
-        goto cleanup;
+    for (BN_copy(i, one); BN_cmp(i, e) <= 0; BN_add(i, i, one)) {
+        BN_mul(c, c, a, ctx); // c = c * a
     }
 
-    result = 1;
+    BN_mod(r, c, m, ctx);
 
-cleanup:
-    if (ctx) {
-        BN_CTX_free(ctx);
-    }
+    BN_CTX_free(ctx);
+    BN_free(c);
+    BN_free(i);
+    BN_free(one);
 
     return result;
 };
