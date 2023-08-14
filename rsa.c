@@ -230,6 +230,7 @@ void printBN(char *msg, BIGNUM * a)
 	OPENSSL_free(number_str); 
 };
 
+
 int BOB12_RSA_KeyGen(BOB12_RSA *b12rsa, int nBits){
 
     BN_CTX *ctx = BN_CTX_new();
@@ -237,11 +238,11 @@ int BOB12_RSA_KeyGen(BOB12_RSA *b12rsa, int nBits){
     BIGNUM *q = BN_new();
     BIGNUM *ph = BN_new();
     BIGNUM *zero = BN_new();
+    BIGNUM *gcd = BN_new();
+    BIGNUM *e = BN_new();
     BN_zero(zero);
 
     
-    p 입력
-
     BN_hex2bn(&p, "C485F491D12EA7E6FEB95794E9FE0A819168AAC9D545C9E2AE0C561622F265FEB965754C875E049B19F3F945F2574D57FA6A2FC0A0B99A2328F107DD16ADA2A7");
 
     // q 입력
@@ -252,15 +253,23 @@ int BOB12_RSA_KeyGen(BOB12_RSA *b12rsa, int nBits){
 
    
     // n = p * q 
-    BN_mul(b12rsa->n, p, q, ctx);
+    BN_mul(b12rsa->n, p, q, NULL);
 
    
     BN_sub(p, p, BN_value_one());
     BN_sub(q, q, BN_value_one());
-    BN_mul(ph, p, q, ctx);
 
-    BN_dec2bn(&b12rsa->e, "678676878");
-    
+    BN_mul(ph, p, q, ctx);
+    BN_dec2bn(&e, "678678");
+
+    BN_gcd(gcd,e, ph,ctx); // r = a % b
+
+    while(!BN_is_one(gcd)){
+        BN_add(e,e, BN_value_one());
+        BN_gcd(gcd,e, ph,ctx);
+    }
+
+    BN_copy(b12rsa->e, e);
     XEuclid(b12rsa->d, NULL, b12rsa->e, ph);
 
     if(BN_cmp(b12rsa->d, zero) == -1){
@@ -268,13 +277,15 @@ int BOB12_RSA_KeyGen(BOB12_RSA *b12rsa, int nBits){
     }
     
 
-    BN_CTX_free(ctx);
+   
     BN_free(p);
     BN_free(q);
     BN_free(ph);
     BN_free(zero);
+    BN_free(gcd);
+    BN_CTX_free(ctx);
 
-    return -1;
+    return 0;
 
 };
 
