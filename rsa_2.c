@@ -190,27 +190,26 @@ int ExpMod(BIGNUM *r, const BIGNUM *a, const BIGNUM *e, BIGNUM *m){
     BIGNUM *c = BN_new();
     BIGNUM *temp = BN_new();
 
-    BN_one(c); // Initialize 'c' to 1
-
+    BN_one(c);
     BN_CTX *ctx = BN_CTX_new();
     if (ctx == NULL) {
-        result = -1; // Failed to initialize BN_CTX
+        result = -1; 
         BN_free(c);
         BN_free(temp);
         return result;
     }
 
-    // Convert exponent 'e' to binary representation
+    
     char *binaryExp = BN_bn2bin(e);
     int expSize = BN_num_bytes(e);
 
     for (int i = 0; i < expSize * 8; i++) {
         if (binaryExp[expSize - 1 - i / 8] & (1 << (i % 8))) {
-            // If the i-th bit is set, multiply c with a^2^i % m
+            
             BN_mod_mul(temp, c, a, m, ctx);
             BN_copy(c, temp);
         }
-        // Compute a^2^i % m for the next iteration
+        
         BN_mod_sqr(temp, a, m, ctx);
         BN_copy(a, temp);
     }
