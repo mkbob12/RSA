@@ -4,54 +4,44 @@
 #include <string.h>
 #include <stdlib.h>
 
+
+
 typedef struct _b12rsa_st {
     BIGNUM *e;
     BIGNUM *d;
     BIGNUM *n;
 }BOB12_RSA;
 
-
-BOB12_RSA *BOB12_RSA_new();
+void printBN(char *msg, const BIGNUM * bn);
 int BOB12_RSA_free(BOB12_RSA *b12rsa);
 int BOB12_RSA_KeyGen(BOB12_RSA *b12rsa, int nBits);
 int BOB12_RSA_Enc(BIGNUM *c, BIGNUM *m, BOB12_RSA *b12rsa);
-int BOB12_RSA_Dec(BIGNUM *m,BIGNUM *c, BOB12_RSA *b12rsa);
+int BOB12_RSA_Dec(BIGNUM *m,BIGNUM *c, const BIGNUM *e, BIGNUM *n);
 void PrintUsage();
+BOB12_RSA *BOB12_RSA_new();
 BIGNUM *XEuclid(BIGNUM *x, BIGNUM *y, const BIGNUM *a, const BIGNUM *b);
 
 
 // 자체 제작
 int ExpMod(BIGNUM *r, const BIGNUM *a, const BIGNUM *e, BIGNUM *m);
-void printBN(char *msg, BIGNUM * a);
-
 
 int main (int argc, char *argv[])
 {
-
-    printf("hello");
-
     BOB12_RSA *b12rsa = BOB12_RSA_new();
-
-    printf("test1");
     BIGNUM *in = BN_new();
     BIGNUM *out = BN_new();
 
- 
-
     if(argc == 2){
-        // if(strncmp(argv[1],"-k",2)){
-        //     PrintUsage();
-        //     return -1;
-        // }
-        
-        printf("test2");
+        if(strncmp(argv[1],"-k",2)){
+            PrintUsage();
+            return -1;
+        }
         BOB12_RSA_KeyGen(b12rsa,1024);
         BN_print_fp(stdout,b12rsa->n);
         printf(" ");
         BN_print_fp(stdout,b12rsa->e);
         printf(" ");
         BN_print_fp(stdout,b12rsa->d);
-        printf(" v");
     }else if(argc == 5){
         if(strncmp(argv[1],"-e",2) && strncmp(argv[1],"-d",2)){
             PrintUsage();
@@ -64,7 +54,8 @@ int main (int argc, char *argv[])
             BOB12_RSA_Enc(out,in, b12rsa);
         }else if(!strncmp(argv[1],"-d",2)){
             BN_hex2bn(&b12rsa->d, argv[2]);
-            BOB12_RSA_Dec(out,in, b12rsa);
+            BN_hex2bn(&b12rsa->n, argv[3]);
+            BOB12_RSA_Dec(out,in, b12rsa->d, b12rsa->n );
         }else{
             PrintUsage();
             return -1;
@@ -85,24 +76,28 @@ int main (int argc, char *argv[])
 // 구조체 생성 
 BOB12_RSA *BOB12_RSA_new()
 {
-    BOB12_RSA *b12rsa = (BOB12_RSA *)malloc(sizeof(BOB12_RSA));
-    b12rsa->e = BN_new();
-    b12rsa->d = BN_new();
-    b12rsa->e = BN_new();
-   
-    return b12rsa;
+    BOB12_RSA *rsa = (BOB12_RSA *)malloc(sizeof(BOB12_RSA));
+    // if (rsa == NULL) {
+    //     return NULL;
+    // }
+    
+    rsa->e = BN_new();
+    rsa->d = BN_new();
+    rsa->n = BN_new();
+    return rsa;
 };
 
 void PrintUsage()
 {
-    printf("usage: rsa [-k|-e e n plaintext|-d d n ciphertext]\n");
+    printf("usage: rsa [-k|-e e n plaintext|-d d n ciphertext]]n");
 }
 
 int BOB12_RSA_free(BOB12_RSA *b12rsa) {
     BN_free(b12rsa->e);
     BN_free(b12rsa->d);
     BN_free(b12rsa->n);
-    return -1;
+    free(b12rsa);
+    return 1;
 };
 
 
@@ -190,54 +185,64 @@ BIGNUM *XEuclid(BIGNUM *x, BIGNUM *y, const BIGNUM *a, const BIGNUM *b)
 
 int ExpMod(BIGNUM *r, const BIGNUM *a, const BIGNUM *e, BIGNUM *m){
 
-    int result = 0;
+  int result = 0;
+
     BIGNUM *c = BN_new();
-    BIGNUM *i = BN_new();
-    BIGNUM *one = BN_new();
+    BIGNUM *temp = BN_new();
 
-    BN_one(one); // Initialize 'one' to 1
-
-    BN_set_word(c,1);
-    BN_set_word(i,1);
-
-    //BN_copy(c, a); // Initialize 'c' to 'a'
+    BN_one(c); // Initialize 'c' to 1
 
     BN_CTX *ctx = BN_CTX_new();
     if (ctx == NULL) {
         result = -1; // Failed to initialize BN_CTX
         BN_free(c);
-        BN_free(i);
-        BN_free(one);
+        BN_free(temp);
         return result;
     }
 
-    for (i; BN_cmp(i, e) <= 0; BN_add(i, i, one)) {
-        BN_mul(c, c, a, ctx); // c = c * a
+    // Convert exponent 'e' to binary representation
+    char *binaryExp = BN_bn2bin(e);
+    int expSize = BN_num_bytes(e);
+
+    for (int i = 0; i < expSize * 8; i++) {
+        if (binaryExp[expSize - 1 - i / 8] & (1 << (i % 8))) {
+            // If the i-th bit is set, multiply c with a^2^i % m
+            BN_mod_mul(temp, c, a, m, ctx);
+            BN_copy(c, temp);
+        }
+        // Compute a^2^i % m for the next iteration
+        BN_mod_sqr(temp, a, m, ctx);
+        BN_copy(a, temp);
     }
 
-    BN_mod(r, c, m, ctx);
+    BN_copy(r, c);
 
+    // Clean up
+    OPENSSL_free(binaryExp);
     BN_CTX_free(ctx);
     BN_free(c);
-    BN_free(i);
-    BN_free(one);
+    BN_free(temp);
 
     return result;
 };
 
 
-void printBN(char *msg, BIGNUM * a) 
+void printBN(char *msg, const BIGNUM * bn) 
 { 
-	/* Use BN_bn2hex(a) for hex string * Use BN_bn2dec(a) for decimal string */ 
-	char * number_str = BN_bn2hex(a);
-	printf("%s %s\n", msg, number_str); 
-	OPENSSL_free(number_str); 
+	char *bn_str = BN_bn2hex(bn);
+    if (bn_str) {
+        printf("%s%s\n", msg, bn_str);
+        OPENSSL_free(bn_str);
+    } else {
+        printf("%sError: BN_bn2hex returned NULL.\n", msg);
+    }
 };
 
 
 int BOB12_RSA_KeyGen(BOB12_RSA *b12rsa, int nBits){
 
     BN_CTX *ctx = BN_CTX_new();
+    
     BIGNUM *p = BN_new();
     BIGNUM *q = BN_new();
     BIGNUM *ph = BN_new();
@@ -246,44 +251,45 @@ int BOB12_RSA_KeyGen(BOB12_RSA *b12rsa, int nBits){
     BIGNUM *e = BN_new();
     BN_zero(zero);
 
-    printf("test3");
-    
-    BN_hex2bn(&p, "C485F491D12EA7E6FEB95794E9FE0A819168AAC9D545C9E2AE0C561622F265FEB965754C875E049B19F3F945F2574D57FA6A2FC0A0B99A2328F107DD16ADA2A7");
-
-    // q 입력
-
-    BN_hex2bn(&q, "F9A91C5F20FBBCCC4114FEBABFE9D6806A52AECDF5C9BAC9E72A07B0AE162B4540C62C52DF8A8181ABCC1A9E982DEB84DE500B27E902CD8FDED6B545C067CE4F");
-
-    
-
    
     // n = p * q 
-    BN_mul(b12rsa->n, p, q, NULL);
+    
+    const char *p_str= "C485F491D12EA7E6FEB95794E9FE0A819168AAC9D545C9E2AE0C561622F265FEB965754C875E049B19F3F945F2574D57FA6A2FC0A0B99A2328F107DD16ADA2A7";
+    const char *q_str= "F9A91C5F20FBBCCC4114FEBABFE9D6806A52AECDF5C9BAC9E72A07B0AE162B4540C62C52DF8A8181ABCC1A9E982DEB84DE500B27E902CD8FDED6B545C067CE4F";
 
-   
+    BN_hex2bn(&p, p_str);
+    BN_hex2bn(&q, q_str);
+
+
+
+    BN_mul(b12rsa->n, p, q, ctx);
+
+    printBN("b12rsa->n \n",b12rsa->n);
+
     BN_sub(p, p, BN_value_one());
     BN_sub(q, q, BN_value_one());
 
     BN_mul(ph, p, q, ctx);
-    BN_dec2bn(&e, "65537");
-    printf("test4");
 
-    BN_gcd(gcd, e, ph, ctx); // r = a % b
 
-    while(!BN_is_one(gcd)){
-        BN_add(e,e, BN_value_one());
-        BN_gcd(gcd,e, ph,ctx);
-    }
+    BN_set_word(b12rsa->e, 65537);
+    printBN("b12rsa->e \n",b12rsa->e);
 
-    BN_copy(b12rsa->e, e);
-    XEuclid(b12rsa->d, NULL, b12rsa->e, ph);
-
-    if(BN_cmp(b12rsa->d, zero) == -1){
-        BN_add(b12rsa->d, b12rsa->d, ph);
-    }
-    
 
    
+    BIGNUM *y = BN_new();
+    XEuclid(b12rsa->d, y, b12rsa->e, ph);
+
+    
+    
+
+
+   if(BN_cmp(b12rsa->d, zero) == -1){
+        BN_add(b12rsa->d, b12rsa->d, ph);
+    }
+
+    printBN("b12rsa->d \n",b12rsa->d);
+
     BN_free(p);
     BN_free(q);
     BN_free(ph);
@@ -299,14 +305,21 @@ int BOB12_RSA_Enc(BIGNUM *c, BIGNUM *m, BOB12_RSA *b12rsa){
 
     ExpMod(c, m, b12rsa->e, b12rsa->n);
 
-    return 1;
+    return 1;   
 };
 
 
-int BOB12_RSA_Dec(BIGNUM *m,BIGNUM *c, BOB12_RSA *b12rsa){
+int BOB12_RSA_Dec(BIGNUM *m,BIGNUM *c, const BIGNUM *e, BIGNUM *n){
 
-    ExpMod(m,c, b12rsa->d, b12rsa->n);
+    BN_CTX *ctx = BN_CTX_new();
+
+    BN_mod_exp(m, c, e, n, ctx);
+
+    BN_CTX_free(ctx);
 
     return 1;
-}
+
+
+    return 1;
+};
 

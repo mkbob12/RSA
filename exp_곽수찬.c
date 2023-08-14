@@ -15,6 +15,8 @@ int ExpMod(BIGNUM *r, const BIGNUM *a, const BIGNUM *e, BIGNUM *m){
     BN_one(one); // Initialize 'one' to 1
 
     BN_set_word(c,1);
+    BN_set_word(i,1);
+
     //BN_copy(c, a); // Initialize 'c' to 'a'
 
     BN_CTX *ctx = BN_CTX_new();
@@ -26,7 +28,7 @@ int ExpMod(BIGNUM *r, const BIGNUM *a, const BIGNUM *e, BIGNUM *m){
         return result;
     }
 
-    for (BN_copy(i, one); BN_cmp(i, e) <= 0; BN_add(i, i, one)) {
+    for (i; BN_cmp(i, e) <= 0; BN_add(i, i, one)) {
         BN_mul(c, c, a, ctx); // c = c * a
     }
 

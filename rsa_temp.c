@@ -4,6 +4,8 @@
 #include <string.h>
 #include <stdlib.h>
 
+
+
 typedef struct _b12rsa_st {
     BIGNUM *e;
     BIGNUM *d;
@@ -11,12 +13,12 @@ typedef struct _b12rsa_st {
 }BOB12_RSA;
 
 
-BOB12_RSA *BOB12_RSA_new();
 int BOB12_RSA_free(BOB12_RSA *b12rsa);
 int BOB12_RSA_KeyGen(BOB12_RSA *b12rsa, int nBits);
 int BOB12_RSA_Enc(BIGNUM *c, BIGNUM *m, BOB12_RSA *b12rsa);
 int BOB12_RSA_Dec(BIGNUM *m,BIGNUM *c, BOB12_RSA *b12rsa);
 void PrintUsage();
+BOB12_RSA *BOB12_RSA_new();
 BIGNUM *XEuclid(BIGNUM *x, BIGNUM *y, const BIGNUM *a, const BIGNUM *b);
 
 
@@ -25,26 +27,22 @@ int ExpMod(BIGNUM *r, const BIGNUM *a, const BIGNUM *e, BIGNUM *m);
 void printBN(char *msg, BIGNUM * a);
 
 
+
 int main (int argc, char *argv[])
 {
-
-    printf("hello");
-
     BOB12_RSA *b12rsa = BOB12_RSA_new();
-
-    printf("test1");
     BIGNUM *in = BN_new();
     BIGNUM *out = BN_new();
 
+    printf("hello");
  
 
     if(argc == 2){
-        // if(strncmp(argv[1],"-k",2)){
-        //     PrintUsage();
-        //     return -1;
-        // }
+        if(strncmp(argv[1],"-k",2)){
+            PrintUsage();
+            return -1;
+        }
         
-        printf("test2");
         BOB12_RSA_KeyGen(b12rsa,1024);
         BN_print_fp(stdout,b12rsa->n);
         printf(" ");
@@ -85,12 +83,12 @@ int main (int argc, char *argv[])
 // 구조체 생성 
 BOB12_RSA *BOB12_RSA_new()
 {
-    BOB12_RSA *b12rsa = (BOB12_RSA *)malloc(sizeof(BOB12_RSA));
-    b12rsa->e = BN_new();
-    b12rsa->d = BN_new();
-    b12rsa->e = BN_new();
+    BOB12_RSA *rsa = (BOB12_RSA *)malloc(sizeof(BOB12_RSA));
+    rsa->e = BN_new();
+    rsa->d = BN_new();
+    rsa->e = BN_new();
    
-    return b12rsa;
+    return rsa;
 };
 
 void PrintUsage()
@@ -236,6 +234,7 @@ void printBN(char *msg, BIGNUM * a)
 
 
 int BOB12_RSA_KeyGen(BOB12_RSA *b12rsa, int nBits){
+    printf("hello");
 
     BN_CTX *ctx = BN_CTX_new();
     BIGNUM *p = BN_new();
@@ -246,16 +245,8 @@ int BOB12_RSA_KeyGen(BOB12_RSA *b12rsa, int nBits){
     BIGNUM *e = BN_new();
     BN_zero(zero);
 
-    printf("test3");
-    
-    BN_hex2bn(&p, "C485F491D12EA7E6FEB95794E9FE0A819168AAC9D545C9E2AE0C561622F265FEB965754C875E049B19F3F945F2574D57FA6A2FC0A0B99A2328F107DD16ADA2A7");
-
-    // q 입력
-
-    BN_hex2bn(&q, "F9A91C5F20FBBCCC4114FEBABFE9D6806A52AECDF5C9BAC9E72A07B0AE162B4540C62C52DF8A8181ABCC1A9E982DEB84DE500B27E902CD8FDED6B545C067CE4F");
-
-    
-
+    const char *p ="C485F491D12EA7E6FEB95794E9FE0A819168AAC9D545C9E2AE0C561622F265FEB965754C875E049B19F3F945F2574D57FA6A2FC0A0B99A2328F107DD16ADA2A7";
+    const char *q = "F9A91C5F20FBBCCC4114FEBABFE9D6806A52AECDF5C9BAC9E72A07B0AE162B4540C62C52DF8A8181ABCC1A9E982DEB84DE500B27E902CD8FDED6B545C067CE4F";
    
     // n = p * q 
     BN_mul(b12rsa->n, p, q, NULL);
@@ -266,8 +257,7 @@ int BOB12_RSA_KeyGen(BOB12_RSA *b12rsa, int nBits){
 
     BN_mul(ph, p, q, ctx);
     BN_dec2bn(&e, "65537");
-    printf("test4");
-
+\
     BN_gcd(gcd, e, ph, ctx); // r = a % b
 
     while(!BN_is_one(gcd)){
