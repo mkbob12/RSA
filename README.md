@@ -11,3 +11,7 @@ gcc exp_곽수찬.c -L.. -lcrypto  -I../include/crypto -o exp_곽수찬
 gcc rsa.c -L.. -lcrypto  -I../include/crypto -o rsa
 ./rsa -k
 ./rsa [-k|-e e n plaintext|-d d n ciphertext]
+
+
+# 제대로 된 파일 
+rsa_2.c 가 제대로 동작하는 파일입니다 
